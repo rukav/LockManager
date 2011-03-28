@@ -1,0 +1,3 @@
+The transaction lock manager allows acquire and manage READ/WRITE locks. The data item
+can be locked by lock function. The unlockAll function releases all locks for the given
+transaction.

@@ -1,0 +1,21 @@
+Name:                LockManager
+Version:             0.0.1
+Synopsis:            Simple locks management
+Description:         The transaction lock manager allows acquire and manage READ/WRITE locks. The data item
+                     can be locked by lock function. The unlockAll function releases all locks for the given
+                     transaction.
+License:             BSD3
+License-File:        LICENSE
+Author:              Vitaliy Rukavishnikov
+Maintainer:          virukav@gmail.com
+Homepage:            http://github.com/rukav/LockManager
+Bug-Reports:         mailto:virukav@gmail.com
+Build-Type:          Simple
+Tested-with:	     GHC==6.12.3
+Category:            Concurrency
+Cabal-Version:       >=1.6
+
+Library
+    Hs-Source-Dirs:  src
+    Exposed-Modules: Control.Concurrent.LockManager
+    Build-Depends:   base == 4.*, containers >= 0.2.0.0 && <= 0.4.0.0
