@@ -1,19 +1,28 @@
+-- |
+-- Module     :  THashTable
+-- The lock-free STM based hash table
+
 module Control.Concurrent.THashTable (
    THashTable,
-   newIO,
-   new,
+   empty,
+   lookup,
+   insert,
+   delete,
+   fromList,
+   toList,
    hashString,
    hashInt
-   -- ...
 ) where
 
 import Data.Bits
-import Data.Word (Word)
 import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as HM
 import Control.Concurrent.STM
+import Control.Monad (liftM, foldM)
 import Data.Digest.Murmur32
 import Data.Digest.Murmur64
+import Prelude hiding (lookup)
+import qualified Prelude
 
 type Hash = Int
 type Bucket k v = HM.HashMap Hash [(k,v)]
@@ -23,16 +32,13 @@ data THashTable k v = THashTable {
    hashFun :: k -> Hash
 }
 
-newIO :: Eq k => Int -> (k -> Hash) -> IO (THashTable k v)
-newIO capacity hf = atomically $ new capacity hf
-
-new :: Eq k => Int -> (k -> Hash) -> STM (THashTable k v)
-new capacity hf = do
+empty :: Eq k => Int -> (k -> Hash) -> STM (THashTable k v)
+empty capacity hashF = do
    let len = powerOf2 capacity
    bs <- V.replicateM len (newTVar HM.empty)
-   return $ THashTable bs hf
+   return $ THashTable bs hashF
    where
-     powerOf2 n = last $ takeWhile (< n) (iterate (flip shiftL 1) 1) 
+     powerOf2 n = last $ takeWhile (<= n) (iterate (flip shiftL 1) 1) 
 
 lookup :: Eq k => k -> THashTable k v -> STM (Maybe v)
 lookup key tbl = do
@@ -63,17 +69,34 @@ delete key tbl = do
      clean = filter (\(k,_) -> k /= key)
      del hm = HM.insert hash (vals hm) hm
 
-bucketFor :: Hash -> THashTable k v -> TVar (Bucket k v)
+update :: Eq k => k -> v -> THashTable k v -> STM ()
+update key val tbl = delete key tbl >> insert key val tbl
+
+toList :: THashTable k v -> STM [(k,v)]
+toList tbl = do
+   hs <- mapM readTVar tvars
+   return $ items hs
+   where
+     tvars = V.toList (table tbl) 
+     items hs = concat $ concat (mapM HM.elems hs) 
+
+fromList :: Eq k => Int -> (k -> Hash) -> [(k,v)] -> STM (THashTable k v)
+fromList cap hf ls = do
+    tbl <- empty cap hf
+    foldM (\t (k,v) -> insert k v t >> return t) tbl ls
+
+bucketFor :: Int -> THashTable k v -> TVar (Bucket k v)
 bucketFor hash tbl = V.unsafeIndex buckets ind
    where
-     ind = hash .&. (V.length buckets) - 1
+     ind = hash .&. (len - 1)
      buckets = table tbl
+     len = V.length buckets
 
-hashString :: String -> Int
+hashString :: String -> Hash
 hashString s = if has32bits then fromIntegral $ asWord32 $ hash32 s 
                 else fromIntegral $ asWord64 $ hash64 s
 
-hashInt :: Int -> Int
+hashInt :: Int -> Hash
 hashInt d = if has32bits then fromIntegral $ asWord32 $ hash32 d 
              else fromIntegral $ asWord64 $ hash64 d
 
@@ -81,3 +104,4 @@ has32bits :: Bool
 has32bits 
    | bitSize (undefined :: Int) <= 32 = True
    | otherwise = False
+
