@@ -8,6 +8,7 @@ module Control.Concurrent.THashTable (
    lookup,
    insert,
    delete,
+   update,
    fromList,
    toList,
    hashString,
@@ -75,22 +76,16 @@ update key val tbl = delete key tbl >> insert key val tbl
 toList :: THashTable k v -> STM [(k,v)]
 toList tbl = do
    hs <- mapM readTVar tvars
+   let es = map HM.elems hs
    return $ items hs
    where
      tvars = V.toList (table tbl) 
-     items hs = concat $ concat (mapM HM.elems hs) 
+     items hs = concat $ concatMap HM.elems hs
 
 fromList :: Eq k => Int -> (k -> Hash) -> [(k,v)] -> STM (THashTable k v)
 fromList cap hf ls = do
     tbl <- empty cap hf
     foldM (\t (k,v) -> insert k v t >> return t) tbl ls
-
-bucketFor :: Int -> THashTable k v -> TVar (Bucket k v)
-bucketFor hash tbl = V.unsafeIndex buckets ind
-   where
-     ind = hash .&. (len - 1)
-     buckets = table tbl
-     len = V.length buckets
 
 hashString :: String -> Hash
 hashString s = if has32bits then fromIntegral $ asWord32 $ hash32 s 
@@ -100,8 +95,23 @@ hashInt :: Int -> Hash
 hashInt d = if has32bits then fromIntegral $ asWord32 $ hash32 d 
              else fromIntegral $ asWord64 $ hash64 d
 
+-- | Helpers
+bucketFor :: Int -> THashTable k v -> TVar (Bucket k v)
+bucketFor hash tbl = V.unsafeIndex buckets ind
+   where
+     ind = hash .&. (len - 1)
+     buckets = table tbl
+     len = V.length buckets
+
 has32bits :: Bool
 has32bits 
    | bitSize (undefined :: Int) <= 32 = True
    | otherwise = False
 
+
+test = do
+  let xs = [(1,2), (3,4)]
+  tbl <- atomically $ fromList 16 hashInt xs
+  xs' <- atomically $ toList tbl
+  print xs
+  print xs'
