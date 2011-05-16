@@ -22,6 +22,7 @@ import Control.Concurrent.STM
 import Control.Monad (liftM, foldM)
 import Data.Digest.Murmur32
 import Data.Digest.Murmur64
+import Data.Hashable
 import Prelude hiding (lookup)
 import qualified Prelude
 
@@ -33,7 +34,7 @@ data THashTable k v = THashTable {
    hashFun :: k -> Hash
 }
 
-empty :: Eq k => Int -> (k -> Hash) -> STM (THashTable k v)
+empty :: Int -> (k -> Hash) -> STM (THashTable k v)
 empty capacity hashF = do
    let len = powerOf2 capacity
    bs <- V.replicateM len (newTVar HM.empty)
@@ -41,7 +42,7 @@ empty capacity hashF = do
    where
      powerOf2 n = last $ takeWhile (<= n) (iterate (flip shiftL 1) 1) 
 
-lookup :: Eq k => k -> THashTable k v -> STM (Maybe v)
+lookup :: (Eq k, Hashable k) => k -> THashTable k v -> STM (Maybe v)
 lookup key tbl = do
    hm <- readTVar tvar
    return $! maybe Nothing (Prelude.lookup key) (look hm) 
@@ -50,7 +51,7 @@ lookup key tbl = do
      tvar = bucketFor hash tbl
      look = HM.lookup hash
 
-insert :: Eq k => k -> v -> THashTable k v -> STM ()
+insert :: (Eq k, Hashable k) => k -> v -> THashTable k v -> STM ()
 insert key val tbl = do
    hm <- readTVar tvar
    writeTVar tvar (ins hm)
@@ -59,7 +60,7 @@ insert key val tbl = do
      tvar = bucketFor hash tbl
      ins = HM.insertWith (++) hash [(key,val)]
 
-delete :: Eq k => k -> THashTable k v -> STM ()
+delete :: (Eq k, Hashable k) => k -> THashTable k v -> STM ()
 delete key tbl = do
    hm <- readTVar tvar
    writeTVar tvar (del hm)
@@ -70,7 +71,7 @@ delete key tbl = do
      clean = filter (\(k,_) -> k /= key)
      del hm = HM.insert hash (vals hm) hm
 
-update :: Eq k => k -> v -> THashTable k v -> STM ()
+update :: (Eq k, Hashable k) => k -> v -> THashTable k v -> STM ()
 update key val tbl = delete key tbl >> insert key val tbl
 
 toList :: THashTable k v -> STM [(k,v)]
@@ -82,7 +83,7 @@ toList tbl = do
      tvars = V.toList (table tbl) 
      items hs = concat $ concatMap HM.elems hs
 
-fromList :: Eq k => Int -> (k -> Hash) -> [(k,v)] -> STM (THashTable k v)
+fromList :: (Eq k, Hashable k) => Int -> (k -> Hash) -> [(k,v)] -> STM (THashTable k v)
 fromList cap hf ls = do
     tbl <- empty cap hf
     foldM (\t (k,v) -> insert k v t >> return t) tbl ls
@@ -107,11 +108,3 @@ has32bits :: Bool
 has32bits 
    | bitSize (undefined :: Int) <= 32 = True
    | otherwise = False
-
-
-test = do
-  let xs = [(1,2), (3,4)]
-  tbl <- atomically $ fromList 16 hashInt xs
-  xs' <- atomically $ toList tbl
-  print xs
-  print xs'

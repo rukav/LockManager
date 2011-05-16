@@ -1,5 +1,5 @@
 module Main where
-import Control.Concurrent.LockManager
+import Control.Concurrent.LockManagerIO
 
 import Control.Concurrent (threadDelay)
 import Control.Monad (forM_)
