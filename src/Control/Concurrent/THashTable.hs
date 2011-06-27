@@ -40,14 +40,14 @@ empty capacity hashF = do
    bs <- V.replicateM len (newTVar HM.empty)
    return $ THashTable bs hashF
    where
-     powerOf2 n = last $ takeWhile (<= n) (iterate (flip shiftL 1) 1) 
+     powerOf2 n = last $ takeWhile (<= n) (iterate (`shiftL` 1) 1) 
 
 lookup :: (Eq k, Hashable k) => k -> THashTable k v -> STM (Maybe v)
 lookup key tbl = do
    hm <- readTVar tvar
    return $! maybe Nothing (Prelude.lookup key) (look hm) 
    where
-     hash = (hashFun tbl) key
+     hash = hashFun tbl key
      tvar = bucketFor hash tbl
      look = HM.lookup hash
 
@@ -56,7 +56,7 @@ insert key val tbl = do
    hm <- readTVar tvar
    writeTVar tvar (ins hm)
    where
-     hash = (hashFun tbl) key
+     hash = hashFun tbl key
      tvar = bucketFor hash tbl
      ins = HM.insertWith (++) hash [(key,val)]
 
@@ -65,7 +65,7 @@ delete key tbl = do
    hm <- readTVar tvar
    writeTVar tvar (del hm)
    where
-     hash = (hashFun tbl) key
+     hash = hashFun tbl key
      tvar = bucketFor hash tbl
      vals hm = maybe [] clean (HM.lookup hash hm)
      clean = filter (\(k,_) -> k /= key)

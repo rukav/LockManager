@@ -1,4 +1,4 @@
-module Control.Concurrent.LockManager (
+module Control.Concurrent.LockManagerIO (
     LockMode (..),
     LockReply (..),
     Tid (..),
@@ -93,7 +93,7 @@ lock' (LM lm) item lk timeout =
               let t = ti {waits = delWaitLock lk (waits ti)}
               case timeout of
                  Nothing -> update m tvar t (Right Timeout)
-                 Just tm -> do
+                 Just tm -> 
                     case conflict (holds t) lk of
                         Nothing -> update m tvar t (Right Denied)
                         Just False -> do

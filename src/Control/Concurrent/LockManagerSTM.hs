@@ -13,12 +13,11 @@ module Control.Concurrent.LockManagerSTM (
 import Control.Concurrent.STM
 import Control.Concurrent (forkIO, threadDelay, killThread)
 import System.CPUTime (getCPUTime)
-import Control.Monad (foldM)
+import Control.Monad (foldM, foldM_)
 import Control.Concurrent.MVar
 import qualified Control.Concurrent.THashTable as T
 import Control.Concurrent.THashTable
 import Control.Concurrent.Chan
-import Control.Monad (foldM_)
 import Data.Hashable
 
 data LockMode =

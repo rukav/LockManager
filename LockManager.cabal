@@ -14,8 +14,20 @@ Build-Type:          Simple
 Tested-with:	     GHC==6.12.3
 Category:            Concurrency
 Cabal-Version:       >=1.6
+Extra-Source-Files:  README
+                     test/TestsSTM.hs
+                     test/TestsIO.hs
+                     test/TestsHash.hs
 
 Library
     Hs-Source-Dirs:  src
-    Exposed-Modules: Control.Concurrent.LockManager
-    Build-Depends:   base == 4.*, containers >= 0.2.0.0 && <= 0.4.0.0
+    Exposed-Modules: Control.Concurrent.LockManagerSTM
+                     Control.Concurrent.LockManagerIO
+                     Control.Concurrent.THashTable
+    Build-Depends:   base >= 4 && < 5,
+                     containers >= 0.2.0.0 && <= 0.4.0.0,
+                     hashable >= 1.1.1.0,
+                     stm >= 2.2.0.1,
+                     murmur-hash >= 0.1.0.2,
+                     unordered-containers >= 0.1.2.0,
+                     vector >= 0.7.0.1
